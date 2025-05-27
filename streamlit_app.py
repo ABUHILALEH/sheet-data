@@ -38,3 +38,4 @@ if excel_url:
             st.error(f"Failed to fetch the file. Status code: {response.status_code}")
     except Exception as e:
         st.error(f"❌ Error loading file: {e}")
+
