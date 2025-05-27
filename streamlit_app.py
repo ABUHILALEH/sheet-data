@@ -1,42 +1,51 @@
 import streamlit as st
 import pandas as pd
+from io import BytesIO
 
 st.set_page_config(page_title="Push Data Extractor", layout="wide")
-st.title("📊 Push Data Extractor")
+st.title("📊 Push Data Extractor (Upload Excel File)")
 
-# Read Excel file locally (must be in the same folder as this script)
-try:
-    df = pd.read_excel("push.xlsx", engine="openpyxl")
-    st.success("✅ Excel file loaded successfully!")
+uploaded_file = st.file_uploader("Upload your Excel file", type=["xlsx"])
 
-    st.subheader("Preview of Data")
-    st.dataframe(df.head())
+if uploaded_file is not None:
+    try:
+        # Read the uploaded Excel file
+        df = pd.read_excel(uploaded_file, engine="openpyxl")
+        st.success("✅ Excel file loaded successfully!")
 
-    # User selects the extraction option
-    option = st.radio("Select what to extract:", ["Check for Label Lost", "Check for Pulled"])
+        st.subheader("Preview of Data")
+        st.dataframe(df.head())
 
-    # User selects which column to search
-    column = st.selectbox("Select column to search in", df.columns)
+        # Select filtering option
+        option = st.radio("Select what to extract:", ["Check for Label Lost", "Check for Pulled"])
 
-    # Filter data based on option
-    if option == "Check for Label Lost":
-        filtered_df = df[df[column].astype(str).str.contains("label lost", case=False, na=False)]
-    else:  # Check for Pulled
-        filtered_df = df[df[column].astype(str).str.contains("pulled", case=False, na=False)]
+        # Select column to search
+        column = st.selectbox("Select column to search in", df.columns)
 
-    st.subheader("Filtered Results")
-    st.dataframe(filtered_df)
+        # Apply filter based on user choice
+        if option == "Check for Label Lost":
+            filtered_df = df[df[column].astype(str).str.contains("label lost", case=False, na=False)]
+        else:
+            filtered_df = df[df[column].astype(str).str.contains("pulled", case=False, na=False)]
 
-    # Download button for filtered data
-    st.download_button(
-        label="📥 Download Filtered Data as Excel",
-        data=filtered_df.to_excel(index=False, engine='openpyxl'),
-        file_name='filtered_push.xlsx',
-        mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    )
+        st.subheader("Filtered Results")
+        st.dataframe(filtered_df)
 
-except FileNotFoundError:
-    st.error("❌ File 'push.xlsx' not found in the app directory. Please upload it to the repo.")
-except Exception as e:
-    st.error(f"❌ Error loading Excel file: {e}")
+        # Download button for filtered data
+        towrite = BytesIO()
+        filtered_df.to_excel(towrite, index=False, engine='openpyxl')
+        towrite.seek(0)
+
+        st.download_button(
+            label="📥 Download Filtered Data as Excel",
+            data=towrite,
+            file_name='filtered_push.xlsx',
+            mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+
+    except Exception as e:
+        st.error(f"❌ Error processing file: {e}")
+else:
+    st.info("Please upload an Excel (.xlsx) file to get started.")
+
 
