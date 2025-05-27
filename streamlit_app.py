@@ -1,56 +1,42 @@
 import streamlit as st
 import pandas as pd
-import requests
-from io import BytesIO
 
-# Streamlit page settings
 st.set_page_config(page_title="Push Data Extractor", layout="wide")
-st.title("📊 Push Data Extractor from GitHub Excel File")
+st.title("📊 Push Data Extractor")
 
-# Input: GitHub raw Excel file URL
-excel_url = st.text_input("📎 Paste the GitHub raw file URL for `push.xlsx`:")
+# Read Excel file locally (must be in the same folder as this script)
+try:
+    df = pd.read_excel("push.xlsx", engine="openpyxl")
+    st.success("✅ Excel file loaded successfully!")
 
-if excel_url:
-    try:
-        # Download file from GitHub
-        response = requests.get(excel_url)
-        if response.status_code == 200:
-            file_data = BytesIO(response.content)
+    st.subheader("Preview of Data")
+    st.dataframe(df.head())
 
-            # Load Excel using openpyxl explicitly
-            df = pd.read_excel(file_data, engine="openpyxl")
-            st.success("✅ Excel file loaded successfully!")
+    # User selects the extraction option
+    option = st.radio("Select what to extract:", ["Check for Label Lost", "Check for Pulled"])
 
-            # Show preview
-            st.subheader("🔍 Preview of Data")
-            st.dataframe(df.head())
+    # User selects which column to search
+    column = st.selectbox("Select column to search in", df.columns)
 
-            # User selects the operation
-            st.subheader("🧭 Choose What to Extract")
-            option = st.radio("Select an option:", ["Check for Label Lost", "Check for Pulled"])
+    # Filter data based on option
+    if option == "Check for Label Lost":
+        filtered_df = df[df[column].astype(str).str.contains("label lost", case=False, na=False)]
+    else:  # Check for Pulled
+        filtered_df = df[df[column].astype(str).str.contains("pulled", case=False, na=False)]
 
-            # Let user pick column
-            column = st.selectbox("Select column to search in", df.columns)
+    st.subheader("Filtered Results")
+    st.dataframe(filtered_df)
 
-            # Apply filter
-            if option == "Check for Label Lost":
-                filtered_df = df[df[column].astype(str).str.contains("label lost", case=False, na=False)]
-            elif option == "Check for Pulled":
-                filtered_df = df[df[column].astype(str).str.contains("pulled", case=False, na=False)]
+    # Download button for filtered data
+    st.download_button(
+        label="📥 Download Filtered Data as Excel",
+        data=filtered_df.to_excel(index=False, engine='openpyxl'),
+        file_name='filtered_push.xlsx',
+        mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
 
-            # Show filtered data
-            st.subheader("📋 Filtered Results")
-            st.dataframe(filtered_df)
+except FileNotFoundError:
+    st.error("❌ File 'push.xlsx' not found in the app directory. Please upload it to the repo.")
+except Exception as e:
+    st.error(f"❌ Error loading Excel file: {e}")
 
-            # Download button
-            st.download_button(
-                label="📥 Download Filtered Data as Excel",
-                data=filtered_df.to_excel(index=False, engine='openpyxl'),
-                file_name='filtered_push.xlsx',
-                mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-            )
-
-        else:
-            st.error(f"❌ Failed to fetch the file. HTTP Status: {response.status_code}")
-    except Exception as e:
-        st.error(f"❌ Error loading file: {e}")
